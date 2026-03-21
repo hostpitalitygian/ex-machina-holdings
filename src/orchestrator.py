@@ -19,7 +19,7 @@ from typing import Optional
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SKILLS_DIR = Path(__file__).parent.parent / ".claude" / "skills"
-MODEL = "claude-opus-4-6"
+MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-6")
 CLICKUP_BASE = "https://api.clickup.com/api/v2"
 MERCURY_BASE = "https://api.mercury.com/api/v1"
 
