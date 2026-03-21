@@ -27,12 +27,11 @@ import sys
 import json
 import hmac
 import hashlib
-import smtplib
 from datetime import date
 from pathlib import Path
-from email.mime.text import MIMEText
 from typing import Optional
 
+import resend
 import anthropic
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header
 from pydantic import BaseModel
@@ -49,9 +48,10 @@ from orchestrator import run_agent, LEADS_LIST, DEALS_LIST, WORKSPACE_ID
 # ── Config ────────────────────────────────────────────────────────────────────
 API_SECRET_TOKEN       = os.environ.get("API_SECRET_TOKEN", "")
 CLICKUP_WEBHOOK_SECRET = os.environ.get("CLICKUP_WEBHOOK_SECRET", "")
-GMAIL_FROM             = os.environ.get("GMAIL_FROM", "")
-GMAIL_TO               = os.environ.get("GMAIL_TO", "")
-GMAIL_APP_PASSWORD     = os.environ.get("GMAIL_APP_PASSWORD", "")
+RESEND_API_KEY         = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM            = os.environ.get("RESEND_FROM", "Prometheus iQ <reports@yourdomain.com>")
+REPORT_TO              = os.environ.get("REPORT_TO", "")          # your email address
+REPORT_CLICKUP_TASK    = os.environ.get("REPORT_CLICKUP_TASK", "") # optional: post to a ClickUp task too
 
 OPERATIONS_LIST  = "901709230262"
 FUNDRAISING_LIST = "901709230268"
@@ -72,25 +72,50 @@ def verify_bearer(authorization: Optional[str]) -> None:
         raise HTTPException(status_code=403, detail="Invalid token")
 
 
-# ── Email ─────────────────────────────────────────────────────────────────────
+# ── Delivery (Resend email + optional ClickUp comment fallback) ───────────────
 def send_email(subject: str, body: str) -> bool:
-    """Send a plain-text email via Gmail SMTP (App Password auth)."""
-    if not all([GMAIL_FROM, GMAIL_TO, GMAIL_APP_PASSWORD]):
-        print("[email] Skipped — set GMAIL_FROM, GMAIL_TO, GMAIL_APP_PASSWORD in .env")
+    """
+    Send via Resend (resend.com). Free tier: 3k emails/month.
+    Requires RESEND_API_KEY + REPORT_TO in .env.
+    """
+    if not all([RESEND_API_KEY, REPORT_TO]):
+        print("[email] Skipped — set RESEND_API_KEY and REPORT_TO in .env")
         return False
     try:
-        msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"]    = GMAIL_FROM
-        msg["To"]      = GMAIL_TO
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as srv:
-            srv.login(GMAIL_FROM, GMAIL_APP_PASSWORD)
-            srv.sendmail(GMAIL_FROM, [GMAIL_TO], msg.as_string())
+        resend.api_key = RESEND_API_KEY
+        resend.Emails.send({
+            "from":    RESEND_FROM,
+            "to":      [REPORT_TO],
+            "subject": subject,
+            "text":    body,
+        })
         print(f"[email] Sent: {subject}")
         return True
     except Exception as e:
         print(f"[email] Error: {e}")
         return False
+
+
+def post_to_clickup(comment: str) -> bool:
+    """
+    Fallback: post report as a comment on a ClickUp task.
+    Set REPORT_CLICKUP_TASK to any task ID you want reports posted to.
+    """
+    if not REPORT_CLICKUP_TASK:
+        return False
+    from orchestrator import create_task_comment
+    result = create_task_comment(REPORT_CLICKUP_TASK, comment)
+    ok = "error" not in result
+    print(f"[clickup] {'Posted' if ok else 'Failed'}: {result}")
+    return ok
+
+
+def deliver(subject: str, body: str) -> bool:
+    """Try email first; fall back to ClickUp comment."""
+    delivered = send_email(subject, body)
+    if not delivered:
+        delivered = post_to_clickup(f"**{subject}**\n\n{body}")
+    return delivered
 
 
 # ── Claude client ─────────────────────────────────────────────────────────────
@@ -203,13 +228,13 @@ def run_command(body: RunRequest, authorization: Optional[str] = Header(None)):
     client = get_client()
     result = dispatch(client, body.command, body.args)
 
-    emailed = False
+    delivered = False
     if body.email:
         today   = date.today().strftime("%A, %B %-d, %Y")
         subject = f"Prometheus iQ — {body.command.replace('-', ' ').title()} | {today}"
-        emailed = send_email(subject, result)
+        delivered = deliver(subject, result)
 
-    return {"status": "ok", "command": body.command, "emailed": emailed, "result": result}
+    return {"status": "ok", "command": body.command, "delivered": delivered, "result": result}
 
 
 @app.post("/webhook/clickup", status_code=202)
@@ -287,4 +312,4 @@ def _background_run(command: str, args: str) -> None:
     if result:
         today   = date.today().strftime("%A, %B %-d, %Y")
         subject = f"Prometheus iQ — {command.replace('-', ' ').title()} | {today}"
-        send_email(subject, result)
+        deliver(subject, result)
