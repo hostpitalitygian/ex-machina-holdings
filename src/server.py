@@ -206,7 +206,7 @@ def health():
     return {
         "status":           "ok",
         "agent":            "Prometheus iQ CEO Command Center",
-        "email_configured": bool(GMAIL_APP_PASSWORD),
+        "email_configured": bool(RESEND_API_KEY and REPORT_TO),
         "auth_configured":  bool(API_SECRET_TOKEN),
         "clickup_webhook":  bool(CLICKUP_WEBHOOK_SECRET),
     }
