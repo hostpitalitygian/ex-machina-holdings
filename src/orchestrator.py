@@ -11,6 +11,7 @@ import anthropic
 import os
 import sys
 import json
+import time
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -19,7 +20,7 @@ from typing import Optional
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SKILLS_DIR = Path(__file__).parent.parent / ".claude" / "skills"
-MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-6")
+MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 CLICKUP_BASE = "https://api.clickup.com/api/v2"
 MERCURY_BASE = "https://api.mercury.com/api/v1"
 
@@ -316,21 +317,43 @@ def run_agent(
     messages = [{"role": "user", "content": user_message}]
     tools = TOOL_SCHEMAS if use_tools else []
 
+    # Max chars per tool result — keeps ClickUp/Mercury JSON from ballooning context
+    TOOL_RESULT_LIMIT = 4000
+    # Seconds to pause between agentic loop iterations (10k input TPM org limit)
+    ITER_DELAY = 15
+    # Per-call rate limit retries
+    RL_RETRIES = 4
+
     max_iterations = 10
     for iteration in range(max_iterations):
+        if iteration > 0:
+            time.sleep(ITER_DELAY)
+
         kwargs = {
             "model": MODEL,
-            "max_tokens": 16000,
+            "max_tokens": 8000,
             "system": system,
             "messages": messages,
         }
         if tools:
             kwargs["tools"] = tools
 
-        with client.messages.stream(**kwargs) as stream:
-            for text in stream.text_stream:
-                print(text, end="", flush=True)
-            response = stream.get_final_message()
+        # Retry this single API call on rate limit
+        response = None
+        for attempt in range(1, RL_RETRIES + 1):
+            try:
+                with client.messages.stream(**kwargs) as stream:
+                    for text in stream.text_stream:
+                        print(text, end="", flush=True)
+                    response = stream.get_final_message()
+                break
+            except anthropic.RateLimitError as e:
+                if attempt < RL_RETRIES:
+                    wait = 2 ** attempt * 15  # 30s, 60s, 120s
+                    print(f"\n[rate-limited, waiting {wait}s (attempt {attempt}/{RL_RETRIES})]", flush=True)
+                    time.sleep(wait)
+                else:
+                    raise
 
         # Append assistant response to history
         messages.append({"role": "assistant", "content": response.content})
@@ -347,12 +370,14 @@ def run_agent(
                 (b.text for b in response.content if b.type == "text"), ""
             )
 
-        # Execute all tool calls
+        # Execute all tool calls, truncating results to limit token accumulation
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
                 print(f"\n[tool: {block.name}({json.dumps(block.input)[:80]}...)]", flush=True)
                 result = execute_tool(block.name, block.input)
+                if len(result) > TOOL_RESULT_LIMIT:
+                    result = result[:TOOL_RESULT_LIMIT] + "\n...[truncated]"
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
