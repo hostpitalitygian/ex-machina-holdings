@@ -57,8 +57,21 @@ Use list IDs directly:
 - Leads: `901711737403`
 - Deals: `901711737409`
 
-### 3. Operational Priorities (ClickUp OPERATIONS)
-Pull Gian's personal priority list (`901709230262`) for any high/urgent tasks due today or this week.
+### 3. COO Snapshot — Operational Priorities (ClickUp OPERATIONS)
+Activate **COO mode** logic. Pull:
+- Gian's personal priority list (`901709230262`) — high/urgent tasks due today or this week
+- Team assignments for Paula (`75476326`) and Ryan (`95384247`) — what are they working on?
+- Any scheduling conflicts from the calendar scan above
+
+### 3b. CFO Snapshot — Financial Position (Mercury + ClickUp)
+Activate **CFO mode** logic. Pull the **three numbers**:
+1. **Cash position** — from Mercury API (`get_mercury_accounts`) for live account balances
+2. **Monthly burn rate** — from Mercury API (`get_mercury_transactions`) for the last 90 days of outflows, averaged
+3. **Current ARR** — from ClickUp Accounts list (`901711737408`)
+
+Also check Fundraising tasks (`901709230268`) and Investor Outreach (`901708451528`) for any time-sensitive investor follow-ups.
+
+If Mercury API is not configured, flag: "Mercury not connected — cash/burn/runway unavailable. Connect Mercury API key to enable."
 
 ### 4. Recent Meeting Notes (ClickUp Docs — PRIMARY SOURCE)
 Search ClickUp Docs for any meeting notes created or updated in the last 48 hours. This is the **primary and authoritative source** for meeting context — always prefer ClickUp Docs over Gmail/Gemini notes.
@@ -86,18 +99,23 @@ Search for unread emails from the last 24 hours that require Gian's attention:
 ```
 ## Good morning, Gian — [date]
 
-### Today's Calendar
+### Today's Calendar (COO)
 [meetings, prep needed, conflicts]
 
 ### Meeting Notes — What Was Decided
 [Only if ClickUp Docs has notes from the last 24–48h — key decisions + assigned next steps]
 [Omit this section if no recent meeting notes found in ClickUp]
 
-### Pipeline — What Needs Attention
+### Revenue & Pipeline (Sales)
 [overdue or stuck items only — keep it to 3 max]
 
-### Your #1 Operational Priority Today
-[single most important task from Gian's priority list]
+### Financial Position (CFO)
+Cash: $[X] | Burn: $[X]/mo | Runway: [X] months | ARR: $[X]
+[If Mercury isn't connected, show: "Mercury not connected — add MERCURY_API_TOKEN to .env"]
+[Flag any investor follow-ups due this week]
+
+### Operations (COO)
+[Gian's #1 priority today + what Paula and Ryan are working on]
 
 ### Signals from the Team
 [anything notable from Core Team channel]
@@ -175,8 +193,10 @@ Full workspace structure for routing decisions. Use these IDs directly in tool c
 | Gmail | `gmail_*` | Read/search email, create drafts (approval required before sending) |
 | Google Calendar | `gcal_*` | Events, free time, meeting scheduling, RSVPs |
 | Canva | `canva_*` / MCP | Design generation, brand kits, asset export, presentations |
+| Mercury | `get_mercury_accounts`, `get_mercury_transactions` | Bank account balances, transaction history, burn rate calculation |
 
 **Important:** Gmail can draft but not auto-send. Always surface drafts to Gian for approval before any email is sent.
+**Important:** Mercury tools are only available in autonomous server mode (`orchestrator.py`). In interactive Claude Code sessions, use ClickUp Fundraising data as fallback.
 
 ---
 

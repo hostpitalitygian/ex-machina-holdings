@@ -160,10 +160,13 @@ def dispatch(client: anthropic.Anthropic, command: str, args: str = "") -> str:
         return run_agent(
             client, "ceo-orchestrator",
             f"Today is {today}. Give me my full morning briefing. "
-            f"Pull live data from ClickUp: "
-            f"(1) Leads [{LEADS_LIST}] — overdue or stuck, "
-            f"(2) Deals [{DEALS_LIST}] — anything needing attention, "
-            f"(3) My priorities [{OPERATIONS_LIST}]. "
+            f"Run all C-Suite personas: "
+            f"(1) SALES: Leads [{LEADS_LIST}] and Deals [{DEALS_LIST}] — overdue or stuck, "
+            f"(2) COO: My priorities [{OPERATIONS_LIST}] + team assignments for Paula [75476326] and Ryan [95384247], "
+            f"(3) CFO: Pull Mercury accounts (get_mercury_accounts) for cash position, "
+            f"then transactions (get_mercury_transactions) for burn rate. "
+            f"Also check Fundraising [901709230268] and Investor Outreach [901708451528]. "
+            f"(4) Search ClickUp Docs for recent meeting notes (search_docs). "
             f"Synthesize into a CEO-level brief with ONE focus recommendation.",
         )
 

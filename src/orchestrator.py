@@ -21,6 +21,7 @@ from typing import Optional
 SKILLS_DIR = Path(__file__).parent.parent / ".claude" / "skills"
 MODEL = "claude-opus-4-6"
 CLICKUP_BASE = "https://api.clickup.com/api/v2"
+MERCURY_BASE = "https://api.mercury.com/api/v1"
 
 WORKSPACE_ID = "8511499"
 LEADS_LIST = "901711737403"
@@ -94,6 +95,37 @@ def create_task_comment(task_id: str, comment_text: str) -> dict:
     )
 
 
+# ── Mercury REST helpers ─────────────────────────────────────────────────────
+def _mercury_request(path: str) -> dict:
+    token = os.environ.get("MERCURY_API_TOKEN", "")
+    if not token:
+        return {"error": "MERCURY_API_TOKEN not set — financial data unavailable. Add your Mercury API token to .env to enable CFO mode."}
+
+    url = f"{MERCURY_BASE}{path}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "url": url}
+    except Exception as e:
+        return {"error": str(e), "url": url}
+
+
+def get_mercury_accounts() -> dict:
+    """Get all Mercury bank accounts with current balances."""
+    return _mercury_request("/accounts")
+
+
+def get_mercury_transactions(account_id: str, limit: str = "100", offset: str = "0") -> dict:
+    """Get recent transactions for a Mercury account. Use to calculate burn rate."""
+    return _mercury_request(f"/account/{account_id}/transactions?limit={limit}&offset={offset}")
+
+
 # Tool registry — maps tool name → callable
 TOOLS: dict = {
     "get_tasks": get_tasks,
@@ -103,6 +135,8 @@ TOOLS: dict = {
     "create_task_comment": create_task_comment,
     "search_docs": search_docs,
     "get_doc_page": get_doc_page,
+    "get_mercury_accounts": get_mercury_accounts,
+    "get_mercury_transactions": get_mercury_transactions,
 }
 
 # Tool schemas for the API
@@ -188,6 +222,27 @@ TOOL_SCHEMAS = [
                 "page_id": {"type": "string", "description": "Page ID within the doc (from search_docs results)"},
             },
             "required": ["workspace_id", "doc_id", "page_id"],
+        },
+    },
+    {
+        "name": "get_mercury_accounts",
+        "description": "Get all Mercury bank accounts with current balances. Use this in CFO mode to pull the live cash position. Returns account IDs needed for get_mercury_transactions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "get_mercury_transactions",
+        "description": "Get recent transactions for a Mercury bank account. Use to calculate monthly burn rate (sum outflows over 90 days, divide by 3). Also useful for spotting unusual expenses.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "account_id": {"type": "string", "description": "Mercury account ID (from get_mercury_accounts)"},
+                "limit": {"type": "string", "description": "Number of transactions to fetch (default '100')"},
+                "offset": {"type": "string", "description": "Pagination offset (default '0')"},
+            },
+            "required": ["account_id"],
         },
     },
 ]
@@ -322,11 +377,14 @@ def cmd_morning_briefing(client: anthropic.Anthropic) -> None:
         "ceo-orchestrator",
         (
             f"Today is {today}. Give me my full morning briefing. "
-            f"Pull live data from ClickUp for: "
-            f"(1) Leads list [{LEADS_LIST}] — anything overdue or stuck, "
-            f"(2) Deals list [{DEALS_LIST}] — deals needing attention, "
-            f"(3) My priority tasks from OPERATIONS list [901709230262]. "
-            f"Synthesize into a CEO-level brief with a single focus recommendation."
+            f"Run all C-Suite personas: "
+            f"(1) SALES: Leads [{LEADS_LIST}] and Deals [{DEALS_LIST}] — overdue or stuck, "
+            f"(2) COO: My priorities [901709230262] + team assignments for Paula [75476326] and Ryan [95384247], "
+            f"(3) CFO: Pull Mercury accounts (get_mercury_accounts) for cash position, "
+            f"then transactions (get_mercury_transactions) for burn rate. "
+            f"Also check Fundraising [901709230268] and Investor Outreach [901708451528]. "
+            f"(4) Search ClickUp Docs for recent meeting notes (search_docs). "
+            f"Synthesize into a CEO-level brief with ONE focus recommendation."
         ),
     )
 

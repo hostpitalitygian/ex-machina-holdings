@@ -97,21 +97,28 @@ Action: [what to create/send — awaiting approval before creating]
 
 ### Data Sources
 ```
+Mercury (PRIMARY for financials):
+  get_mercury_accounts      → live cash position across all accounts
+  get_mercury_transactions  → last 90 days of transactions → calculate burn rate
+
 ClickUp:
   Fundraising tasks:     list_id 901709230268
   Investor Outreach:     list_id 901708451528
   Tools & Subscriptions: list_id 901709232462
+  Accounts (ARR):        list_id 901711737408
 
 Gmail: gmail_search_messages (search for investor threads, financial updates)
 ```
 
 ### The Three Numbers (Always Surface First)
 Before any financial or investor conversation, CFO mode should surface:
-1. **Cash runway** — how many months at current burn
-2. **Monthly burn rate** — 3-month average
+1. **Cash position** — from Mercury API (`get_mercury_accounts`). Sum all account balances.
+2. **Monthly burn rate** — from Mercury API (`get_mercury_transactions`). Pull last 90 days of transactions, sum all outflows (negative amounts), divide by 3.
 3. **Current ARR** — from the Accounts list in Sales & CRM (`901711737408`)
 
-If these aren't available in ClickUp, flag the gap: "Runway data not found in ClickUp — check Mercury or ask Gian to confirm current cash position."
+**Runway calculation:** Cash Position / Monthly Burn Rate = months of runway remaining.
+
+If Mercury API is not configured (MERCURY_API_TOKEN not set), flag clearly: "Mercury not connected — cash/burn/runway unavailable. Add MERCURY_API_TOKEN to .env to enable live financial data."
 
 ### CFO Output Format
 
