@@ -73,6 +73,18 @@ def search_tasks(workspace_id: str, query: str) -> dict:
     return _clickup_request(f"/team/{workspace_id}/task?search_query={q}")
 
 
+def search_docs(workspace_id: str, query: str) -> dict:
+    """Search ClickUp Docs by keyword. Returns doc/page IDs and names."""
+    import urllib.parse
+    q = urllib.parse.quote(query)
+    return _clickup_request(f"/workspaces/{workspace_id}/docs?search_query={q}&limit=10")
+
+
+def get_doc_page(workspace_id: str, doc_id: str, page_id: str) -> dict:
+    """GET the content of a specific ClickUp Doc page."""
+    return _clickup_request(f"/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}")
+
+
 def create_task_comment(task_id: str, comment_text: str) -> dict:
     """POST /task/{task_id}/comment"""
     return _clickup_request(
@@ -89,6 +101,8 @@ TOOLS: dict = {
     "get_task_comments": get_task_comments,
     "search_tasks": search_tasks,
     "create_task_comment": create_task_comment,
+    "search_docs": search_docs,
+    "get_doc_page": get_doc_page,
 }
 
 # Tool schemas for the API
@@ -149,6 +163,31 @@ TOOL_SCHEMAS = [
                 "comment_text": {"type": "string", "description": "Comment text to post"},
             },
             "required": ["task_id", "comment_text"],
+        },
+    },
+    {
+        "name": "search_docs",
+        "description": "Search ClickUp Docs by keyword. Use this to find meeting notes, strategy docs, or any document by name or content. Returns doc IDs and page IDs needed for get_doc_page.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workspace_id": {"type": "string", "description": "ClickUp workspace ID"},
+                "query": {"type": "string", "description": "Search keywords (e.g. 'meeting notes Ryan sprint')"},
+            },
+            "required": ["workspace_id", "query"],
+        },
+    },
+    {
+        "name": "get_doc_page",
+        "description": "Get the full content of a specific ClickUp Doc page. Always prefer this over Gmail/Gemini notes for meeting context.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workspace_id": {"type": "string", "description": "ClickUp workspace ID"},
+                "doc_id": {"type": "string", "description": "ClickUp Doc ID (from search_docs results)"},
+                "page_id": {"type": "string", "description": "Page ID within the doc (from search_docs results)"},
+            },
+            "required": ["workspace_id", "doc_id", "page_id"],
         },
     },
 ]

@@ -36,6 +36,8 @@ import anthropic
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 # Load .env from project root regardless of where uvicorn is launched
@@ -53,11 +55,34 @@ RESEND_FROM            = os.environ.get("RESEND_FROM", "Prometheus iQ <reports@y
 REPORT_TO              = os.environ.get("REPORT_TO", "")          # your email address
 REPORT_CLICKUP_TASK    = os.environ.get("REPORT_CLICKUP_TASK", "") # optional: post to a ClickUp task too
 
+# ── Scheduler config ──────────────────────────────────────────────────────────
+BRIEFING_HOUR   = int(os.environ.get("BRIEFING_HOUR", "7"))
+BRIEFING_MINUTE = int(os.environ.get("BRIEFING_MINUTE", "0"))
+BRIEFING_TZ     = os.environ.get("BRIEFING_TZ", "America/Puerto_Rico")
+
 OPERATIONS_LIST  = "901709230262"
 FUNDRAISING_LIST = "901709230268"
 INVESTOR_LIST    = "901708451528"
 
 app = FastAPI(title="Prometheus iQ CEO Agent", version="1.0.0")
+
+
+@app.on_event("startup")
+def start_scheduler():
+    """Schedule the daily morning briefing via Resend."""
+    if not all([RESEND_API_KEY, REPORT_TO]):
+        print("[scheduler] Skipped — set RESEND_API_KEY and REPORT_TO to enable scheduled briefings")
+        return
+    scheduler = BackgroundScheduler(timezone=BRIEFING_TZ)
+    scheduler.add_job(
+        _background_run,
+        CronTrigger(hour=BRIEFING_HOUR, minute=BRIEFING_MINUTE, timezone=BRIEFING_TZ),
+        args=["morning-briefing", ""],
+        id="morning-briefing",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print(f"[scheduler] Morning briefing scheduled at {BRIEFING_HOUR:02d}:{BRIEFING_MINUTE:02d} {BRIEFING_TZ}")
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────

@@ -60,14 +60,27 @@ Use list IDs directly:
 ### 3. Operational Priorities (ClickUp OPERATIONS)
 Pull Gian's personal priority list (`901709230262`) for any high/urgent tasks due today or this week.
 
-### 4. Company Signals (ClickUp Core Team Channel)
+### 4. Recent Meeting Notes (ClickUp Docs — PRIMARY SOURCE)
+Search ClickUp Docs for any meeting notes created or updated in the last 48 hours. This is the **primary and authoritative source** for meeting context — always prefer ClickUp Docs over Gmail/Gemini notes.
+
+Use `search_docs` with workspace ID `8511499` and keywords like "meeting notes" or specific participant names. If a relevant doc is found, fetch the full page content with `get_doc_page` and extract:
+- Attendees
+- Key decisions made
+- Assigned next steps (and who owns them)
+- Any open questions or blockers
+
+**Rule:** If a meeting was on today's or yesterday's calendar, always check ClickUp Docs for notes before surfacing the Inbox Flag section.
+
+### 5. Company Signals (ClickUp Core Team Channel)
 Check the Core Team chat channel (`83r0b-16677`) for any recent announcements, action items, or emergencies posted since yesterday.
 
-### 5. Email Triage (Gmail)
+### 6. Email Triage (Gmail — LAST RESORT for meeting context)
 Search for unread emails from the last 24 hours that require Gian's attention:
 - Investor emails
 - Partner/customer replies
 - Anything flagged urgent
+
+**Note:** Do NOT surface Gemini/Google meeting note emails if the same meeting notes are already available in ClickUp Docs. ClickUp is the source of truth.
 
 **Morning Briefing Output Format:**
 ```
@@ -75,6 +88,10 @@ Search for unread emails from the last 24 hours that require Gian's attention:
 
 ### Today's Calendar
 [meetings, prep needed, conflicts]
+
+### Meeting Notes — What Was Decided
+[Only if ClickUp Docs has notes from the last 24–48h — key decisions + assigned next steps]
+[Omit this section if no recent meeting notes found in ClickUp]
 
 ### Pipeline — What Needs Attention
 [overdue or stuck items only — keep it to 3 max]
@@ -86,7 +103,7 @@ Search for unread emails from the last 24 hours that require Gian's attention:
 [anything notable from Core Team channel]
 
 ### Inbox Flag
-[any email requiring action today]
+[emails requiring action — skip if already covered by ClickUp meeting notes above]
 
 ---
 **Focus recommendation:** [One sentence on where Gian's time creates the most value today]
