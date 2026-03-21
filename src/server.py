@@ -36,6 +36,8 @@ import anthropic
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Header
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 # Load .env from project root regardless of where uvicorn is launched
@@ -53,11 +55,34 @@ RESEND_FROM            = os.environ.get("RESEND_FROM", "Prometheus iQ <reports@y
 REPORT_TO              = os.environ.get("REPORT_TO", "")          # your email address
 REPORT_CLICKUP_TASK    = os.environ.get("REPORT_CLICKUP_TASK", "") # optional: post to a ClickUp task too
 
+# ── Scheduler config ──────────────────────────────────────────────────────────
+BRIEFING_HOUR   = int(os.environ.get("BRIEFING_HOUR", "7"))
+BRIEFING_MINUTE = int(os.environ.get("BRIEFING_MINUTE", "0"))
+BRIEFING_TZ     = os.environ.get("BRIEFING_TZ", "America/Puerto_Rico")
+
 OPERATIONS_LIST  = "901709230262"
 FUNDRAISING_LIST = "901709230268"
 INVESTOR_LIST    = "901708451528"
 
 app = FastAPI(title="Prometheus iQ CEO Agent", version="1.0.0")
+
+
+@app.on_event("startup")
+def start_scheduler():
+    """Schedule the daily morning briefing via Resend."""
+    if not all([RESEND_API_KEY, REPORT_TO]):
+        print("[scheduler] Skipped — set RESEND_API_KEY and REPORT_TO to enable scheduled briefings")
+        return
+    scheduler = BackgroundScheduler(timezone=BRIEFING_TZ)
+    scheduler.add_job(
+        _background_run,
+        CronTrigger(hour=BRIEFING_HOUR, minute=BRIEFING_MINUTE, timezone=BRIEFING_TZ),
+        args=["morning-briefing", ""],
+        id="morning-briefing",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print(f"[scheduler] Morning briefing scheduled at {BRIEFING_HOUR:02d}:{BRIEFING_MINUTE:02d} {BRIEFING_TZ}")
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -135,10 +160,13 @@ def dispatch(client: anthropic.Anthropic, command: str, args: str = "") -> str:
         return run_agent(
             client, "ceo-orchestrator",
             f"Today is {today}. Give me my full morning briefing. "
-            f"Pull live data from ClickUp: "
-            f"(1) Leads [{LEADS_LIST}] — overdue or stuck, "
-            f"(2) Deals [{DEALS_LIST}] — anything needing attention, "
-            f"(3) My priorities [{OPERATIONS_LIST}]. "
+            f"Run all C-Suite personas: "
+            f"(1) SALES: Leads [{LEADS_LIST}] and Deals [{DEALS_LIST}] — overdue or stuck, "
+            f"(2) COO: My priorities [{OPERATIONS_LIST}] + team assignments for Paula [75476326] and Ryan [95384247], "
+            f"(3) CFO: Pull Mercury accounts (get_mercury_accounts) for cash position, "
+            f"then transactions (get_mercury_transactions) for burn rate. "
+            f"Also check Fundraising [901709230268] and Investor Outreach [901708451528]. "
+            f"(4) Search ClickUp Docs for recent meeting notes (search_docs). "
             f"Synthesize into a CEO-level brief with ONE focus recommendation.",
         )
 
