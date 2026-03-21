@@ -123,7 +123,7 @@ def get_mercury_accounts() -> dict:
 
 def get_mercury_transactions(account_id: str, limit: str = "100", offset: str = "0") -> dict:
     """Get recent transactions for a Mercury account. Use to calculate burn rate."""
-    return _mercury_request(f"/account/{account_id}/transactions?limit={limit}&offset={offset}")
+    return _mercury_request(f"/accounts/{account_id}/transactions?limit={limit}&offset={offset}")
 
 
 # Tool registry — maps tool name → callable
