@@ -1,32 +1,70 @@
-# Prometheus iQ — CEO Command Center & Agent Creation Farm
+# Prometheus iQ — Agent Creation Farm
 
-This repository is **Gian's agent creation farm** — the canonical environment for building,
-testing, and deploying AI agents under the Prometheus iQ / Ex Machina Holdings umbrella.
-All new agents are developed here and adhere to the architecture standards below.
+This repository is **Gian's agent creation farm** under Ex Machina Holdings.
+It hosts, builds, and ships AI agents across all business domains — not just CEO-level orchestration.
+Agents here can be autonomous, skill-triggered, event-driven, or peer-invoked by other skills.
 
 ---
 
-## Active CEO Agent
+## Agent Architecture Types
 
-You are Gian's AI chief of staff. At the start of every session, automatically run the
+| Type | Description | Example |
+|------|-------------|---------|
+| **Orchestrator** | Routes across domains, synthesizes multi-agent output | `ceo-orchestrator` |
+| **Skill Agent** | Invoked directly by Gian via `/skill` | `sales-assistant`, `c-suite` |
+| **Peer-Triggered Agent** | Invoked by another skill at the end of a workflow | Email Sender (post-sales-assistant) |
+| **Autonomous Agent** | Runs on a schedule or webhook without human prompt | Morning briefing via GitHub Actions |
+
+---
+
+## Active Agents
+
+### 1. CEO Command Center (Live)
+
+Gian's AI chief of staff. At the start of every session, automatically run the
 morning briefing via the `ceo-orchestrator` skill unless Gian specifies a different task.
 
-### Available Skills
+**Skills:**
 - `/ceo-orchestrator` — Morning briefing, cross-domain routing, full company snapshot
 - `/sales-assistant` — Pipeline, leads, deals, email drafts, closing plays
 - `/deal-architect` — Negotiation strategy (sales, partnerships, fundraising)
 - `/c-suite` — COO / CFO / CPO / CMO modes
 
-### Default Behavior
+**Default Behavior:**
 On session start: run `/ceo-orchestrator` with the message "Give me my morning briefing."
 Exception: if Gian opens with a specific request, address that instead.
 
 ---
 
+### 2. Prospect Email Agent (In Design)
+
+**Purpose:** Send personalized outbound emails to sales prospects.
+
+**Trigger:** Peer-invoked — this agent activates **after** Gian has discussed the outreach
+process with `/sales-assistant`. The sales assistant surfaces the prospect, the context,
+and the angle; then hands off to this agent to compose and send via Gmail.
+
+**Invocation pattern:**
+```
+sales-assistant (surfaces prospect + talking points)
+    → Gian approves outreach
+        → Prospect Email Agent (drafts + sends personalized email via Gmail MCP)
+```
+
+**Scope:**
+- Pull prospect data from ClickUp CRM (Leads list `901711737403`)
+- Personalize email body based on lead context, industry, and last interaction
+- Send via Gmail MCP or save as draft for Gian's review (configurable)
+- Log outreach back to ClickUp as a task comment or status update
+
+**Status:** Designing — build begins next session.
+
+---
+
 ## Agent Creation Farm — Standards
 
-### Architecture Pattern
-Every agent built in this repo follows this structure:
+### Folder Structure
+Every agent follows this layout:
 
 ```
 .claude/
@@ -46,7 +84,7 @@ CLAUDE.md                   # This file — master context
 | Connector | Purpose | Permission Pattern |
 |-----------|---------|-------------------|
 | ClickUp | CRM + Slack + PM | `mcp__e4ae1068-c27a-42da-aa33-333134d7d3a9__*` |
-| Gmail | Inbox + Drafts | `mcp__7df30b20-bbf2-4f86-b1e3-68ba0d4d57a0__*` |
+| Gmail | Inbox + Drafts + Send | `mcp__7df30b20-bbf2-4f86-b1e3-68ba0d4d57a0__*` |
 | Google Calendar | Scheduling | `mcp__9df9ec5e-11f5-4538-993b-7fc0189be9d0__*` |
 | Canva | Design + Content | `mcp__5d6fd19a-3274-4857-a500-594d63ce3251__*` |
 
@@ -62,7 +100,7 @@ Each skill file must define:
 - **Trigger conditions** — exact phrases and intent patterns
 - **Data sources** — which MCPs to query and in what order
 - **Output format** — headers, bullets, tables, tone
-- **Escalation path** — when to route to another skill
+- **Handoff / escalation** — when and how to invoke a peer agent or route elsewhere
 
 ### Settings Standard
 `settings.json` must:
@@ -77,6 +115,18 @@ Each skill file must define:
 
 ---
 
+## Agent Inventory
+
+| Agent | Type | Skill File | Status | Invoked By |
+|-------|------|-----------|--------|------------|
+| CEO Orchestrator | Orchestrator | `ceo-orchestrator/SKILL.md` | Live | Session start / Gian |
+| Sales Assistant | Skill Agent | `sales-assistant/SKILL.md` | Live | Gian |
+| Deal Architect | Skill Agent | `deal-architect/SKILL.md` | Live | Gian |
+| C-Suite | Skill Agent | `c-suite/SKILL.md` | Live | Gian |
+| Prospect Email Agent | Peer-Triggered | `prospect-email/SKILL.md` | In Design | `sales-assistant` |
+
+---
+
 ## Workspace Quick Reference
 - Gian's user ID: `10713437`
 - ClickUp Workspace: `8511499`
@@ -84,14 +134,3 @@ Each skill file must define:
 - OPERATIONS Space: `90173105553` → Gianrené Priorities `901709230262`
 - Core Team channel: `83r0b-16677`
 - Primary model: `claude-sonnet-4-6`
-
----
-
-## Agent Inventory
-
-| Agent | Skill File | Status | Domain |
-|-------|-----------|--------|--------|
-| CEO Orchestrator | `ceo-orchestrator/SKILL.md` | Live | Cross-domain routing |
-| Sales Assistant | `sales-assistant/SKILL.md` | Live | Pipeline + CRM |
-| Deal Architect | `deal-architect/SKILL.md` | Live | Negotiation strategy |
-| C-Suite | `c-suite/SKILL.md` | Live | COO / CFO / CPO / CMO |
