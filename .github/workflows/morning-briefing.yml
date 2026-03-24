@@ -2,8 +2,8 @@ name: Morning Briefing — 7:00 AM AST
 
 on:
   schedule:
-    # 7:00 AM AST = 11:00 AM UTC (AST is UTC-4, no DST)
-    - cron: "0 11 * * *"
+    # 7:00 AM AST = 11:00 AM UTC (AST is UTC-4, no DST) — Mondays only
+    - cron: "0 11 * * 1"
   workflow_dispatch: # allow manual trigger from GitHub UI
 
 jobs:
