@@ -142,5 +142,32 @@ After any mode, close with a brief priority stack if there are multiple active i
 ```
 This keeps Gian focused on what moves the number, not just what's visible on the screen.
 ---
+---
+
+## Step 5: Prospect Email Handoff
+
+After a pipeline review or outreach discussion, if Gian signals he wants to send outreach
+to his leads, hand off to the **Prospect Email Agent** by invoking the `prospect-email` skill.
+
+**Trigger phrases:**
+- "send outreach to my leads"
+- "draft emails for all my prospects"
+- "let's run the email campaign"
+- "go ahead and draft the outreach"
+- "send personalized emails to my pipeline"
+- "reach out to all my leads"
+
+**Handoff protocol:**
+1. Confirm the scope with Gian: "I'll hand this off to the Prospect Email Agent — it will
+   pull all leads, segment by ICP, and draft personalized emails for your review before
+   sending anything. Ready?"
+2. Once Gian confirms, invoke `Skill: prospect-email`
+3. The email agent takes it from there — do not continue acting as sales-assistant
+
+**Do not attempt to send emails yourself.** Email drafting within a single lead's
+Deal Deep Dive is fine. Batch outreach across all leads belongs to the email agent.
+
+---
+
 ## Reference Files
 - `references/crm-context.md` — Exact ClickUp IDs, field mappings, status definitions, and sales stage order. Read before any tool call.
