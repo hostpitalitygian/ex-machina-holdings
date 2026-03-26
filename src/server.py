@@ -70,6 +70,9 @@ app = FastAPI(title="Prometheus iQ CEO Agent", version="1.0.0")
 @app.on_event("startup")
 def start_scheduler():
     """Schedule the daily morning briefing via Resend."""
+    if os.environ.get("BRIEFING_ENABLED", "true").lower() == "false":
+        print("[scheduler] Skipped — BRIEFING_ENABLED=false")
+        return
     if not all([RESEND_API_KEY, REPORT_TO]):
         print("[scheduler] Skipped — set RESEND_API_KEY and REPORT_TO to enable scheduled briefings")
         return
